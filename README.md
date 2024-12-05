@@ -41,28 +41,21 @@ uv run example.py
 
 This integration pattern offers several advantages over traditional tool/function calling implementations:
 
-### 1. Unified Interface
+### 1. Protocol-Level Interface Abstraction
 
-- Agents interact with tools and resources through a consistent MCP interface:
-  - `read_resource` for accessing resources
-  - `call_tool` for executing tools
-  - `list_tools` for discovering available tools
+- The entire MCP client-server interface (`list_resources`, `read_resource`, `list_tools`, `call_tool`, `list_prompts`, etc.) is exposed as tools to the LLM agent
+- Agents only need to understand how to use these protocol-level functions
+- Any resources or tools exposed through the MCP server automatically become available to the agent without defining individual tool functions
+- Server handles all implementation details of tools and resources
 
 ### 2. Dynamic Tool Discovery
 
-- Agents automatically discover available tools through the MCP server
+- Agents automatically discover available tools through the MCP server's `list_tools` interface
 - No hardcoding of tool definitions in agent code
 - Tools can be added/removed/modified on the server without agent changes
 - System messages dynamically inform LLMs about available tools and usage patterns
 
-### 3. Protocol-Level Abstraction
-
-- Separates tool definition from tool implementation
-- Server handles tool execution details
-- Clients focus on high-level interaction patterns
-- Supports both synchronous and asynchronous operations
-
-### 4. Model Agnosticism
+### 3. Model Agnosticism
 
 - Works with any LLM that supports tool/function calling
 - MCP tools use Anthropic's schema format
@@ -74,31 +67,22 @@ This integration pattern offers several advantages over traditional tool/functio
 When compared to traditional AutoGen tool implementations:
 
 1. **Decoupled Architecture**
-   - Tools live in MCP servers rather than agent code
+   - Tools and resources live in MCP servers rather than agent code
    - Multiple agents can share the same tool infrastructure
-   - Easier maintenance and updates
+   - Agents only need to implement the MCP client interface functions
 
 2. **Enhanced Reusability**
    - MCP servers can be used by any MCP-compatible client
-   - Tools aren't tied to specific agent implementations
-   - Consistent interface across different agent types
-
-3. **Simplified Agent Development**
-   - Agents only need to implement MCP client interface
-   - Tool discovery and execution handled by protocol
-   - Reduced boilerplate code
+   - Tools and resources aren't tied to specific agent implementations
+   - Protocol-level abstraction provides consistent interface across different agent types
 
 ## Architecture Overview
 
 ```mermaid
 graph LR
-    A[MCPAssistantAgent] -->|MCP Client| B[MCP Server]
+    A[MCPAssistantAgent] -->|MCP Client Interface| B[MCP Server]
     B -->|Exposes| C[Resources]
     B -->|Exposes| D[Tools]
     A -->|Uses| E[AutoGen]
     E -->|LLM Interface| F[Language Models]
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
