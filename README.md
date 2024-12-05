@@ -43,46 +43,52 @@ This integration pattern offers several advantages over traditional tool/functio
 
 ### 1. Protocol-Level Interface Abstraction
 
-- The entire MCP client-server interface (`list_resources`, `read_resource`, `list_tools`, `call_tool`, `list_prompts`, etc.) is exposed as tools to the LLM agent
-- Agents only need to understand how to use these protocol-level functions
-- Any resources or tools exposed through the MCP server automatically become available to the agent without defining individual tool functions
-- Server handles all implementation details of tools and resources
+- The MCP client interface itself (`read_resource`, `call_tool`, etc.) is exposed to the LLM agent through AG2's tool registration
+- Rather than registering individual tools directly with AG2, we register only the core MCP interface methods
+- All specific tools (e.g., `write_file`) are proxied through the `call_tool` interface to the MCP server
+- This means tools defined on the MCP server don't need any format conversion for different LLMs - they remain in Anthropic schema format
 
-### 2. Dynamic Tool Discovery
+### 2. Dynamic Tool Discovery and Model Agnosticism
 
-- Agents automatically discover available tools through the MCP server's `list_tools` interface
-- No hardcoding of tool definitions in agent code
-- Tools can be added/removed/modified on the server without agent changes
-- System messages dynamically inform LLMs about available tools and usage patterns
+- Agents use `list_tools` to discover available server tools
+- While the MCP server defines tools using Anthropic's schema format, the LLM never sees these directly
+- The LLM only needs to understand how to use `call_tool` with a name and arguments
+- No need to convert tool schemas between different LLM formats since they're abstracted behind the MCP interface
 
-### 3. Model Agnosticism
+### 3. Clean Separation of Concerns
 
-- Works with any LLM that supports tool/function calling
-- MCP tools use Anthropic's schema format
-- Automatic conversion to model-specific formats (e.g., OpenAI)
-- Tool execution handled by MCP client-server interface
+- MCP server handles:
+  - Tool implementation details
+  - Tool schema definitions (in Anthropic format)
+  - Resource management
+- Agent only handles:
+  - Understanding the core MCP interface methods
+  - Using `call_tool` to proxy specific tool requests to the server
+- LLM integration layer only handles:
+  - Registering MCP interface methods as tools (e.g., `call_tool` in OpenAI format)
+  - Routing tool calls through the MCP client
 
 ### AutoGen-Specific Benefits
 
 When compared to traditional AutoGen tool implementations:
 
-1. **Decoupled Architecture**
-   - Tools and resources live in MCP servers rather than agent code
-   - Multiple agents can share the same tool infrastructure
-   - Agents only need to implement the MCP client interface functions
+1. **Simplified Tool Integration**
+   - No need to define tool schemas in multiple formats
+   - Tools are defined once on the MCP server in Anthropic format
+   - AG2 only needs the `call_tool` interface registered
 
-2. **Enhanced Reusability**
+2. **Enhanced Modularity**
    - MCP servers can be used by any MCP-compatible client
-   - Tools and resources aren't tied to specific agent implementations
-   - Protocol-level abstraction provides consistent interface across different agent types
+   - Tools and resources are completely decoupled from agent implementation
+   - New tools can be added to the server without any agent changes
 
 ## Architecture Overview
 
 ```mermaid
 graph LR
-    A[MCPAssistantAgent] -->|MCP Client Interface| B[MCP Server]
-    B -->|Exposes| C[Resources]
-    B -->|Exposes| D[Tools]
-    A -->|Uses| E[AutoGen]
-    E -->|LLM Interface| F[Language Models]
+    A[LLM] -->|Uses| B[AG2 Tool Interface]
+    B -->|Registered| C[MCP Interface Methods]
+    C -->|Proxy| D[MCP Client]
+    D -->|Protocol| E[MCP Server]
+    E -->|Implements| F[Tools & Resources]
 ```
